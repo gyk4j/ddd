@@ -4,6 +4,7 @@ import logging
 import os
 import io
 import hashlib
+from pathlib import Path
 
 class Logger:    
     logger = None
@@ -39,7 +40,7 @@ class DDD:
         md5 = ''
         size = -1
         
-        with open(file, "rb") as f:
+        with file.open("rb") as f:
             # Get file hash
             digest = hashlib.md5()
             while chunk := f.read(self.BUFFER_SIZE):
@@ -58,7 +59,7 @@ class DDD:
                 # self.logger.debug("<DIR> %s\%s" % (root, d))
                 
             for file in files:
-                path = "{}\{}".format(root, file)
+                path = Path(root, file)
                 (md5, size) = self.hash_file(path)
                 self.logger.debug("      %s:%s:%d" % (md5, path, size))
     
