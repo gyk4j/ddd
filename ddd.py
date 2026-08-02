@@ -2,6 +2,8 @@
 
 import logging
 import os
+import io
+import hashlib
 
 class Logger:    
     logger = None
@@ -31,8 +33,15 @@ class DDD:
             # for d in dirs:
                 # self.logger.debug("<DIR> %s\%s" % (root, d))
                 
-            for f in files:
-                self.logger.debug("      %s\%s" % (root, f))
+            for file in files:
+                with open("{}\{}".format(root, file), "rb") as f:
+                    digest = hashlib.md5()
+                    while chunk := f.read(8192):
+                        digest.update(chunk)
+                    md5 = digest.hexdigest()
+                    f.seek(0, os.SEEK_END)
+                    size = f.tell()
+                self.logger.debug("      %s:%s\%s:%d" % (md5, root, file, size))
     
     def main(self):
         self.process('C:\Windows\Web\Wallpaper')
