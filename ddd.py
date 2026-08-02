@@ -25,12 +25,17 @@ class DDD:
 
     def __init__(self):
         self.logger = Logger().logger
+        
+    def process(self, directory="."):
+        for root, dirs, files in os.walk(directory):
+            # for d in dirs:
+                # self.logger.debug("<DIR> %s\%s" % (root, d))
+                
+            for f in files:
+                self.logger.debug("      %s\%s" % (root, f))
     
     def main(self):
-        data = "note the string case"
-        self.logger.debug(data)
-        modified_data = data.upper()
-        self.logger.debug(modified_data)
+        self.process('C:\Windows\Web\Wallpaper')
 
 if __name__ == "__main__":
     app = DDD()
