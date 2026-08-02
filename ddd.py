@@ -8,7 +8,8 @@ import hashlib
 class Logger:    
     logger = None
     
-    def __init__(self, filename=None):
+    @classmethod
+    def init_logger(cls, filename=None, level=logging.DEBUG):
         if filename is not None:
             logging.basicConfig(
                 filename=filename,
@@ -16,17 +17,21 @@ class Logger:
                 filemode='w')
         else:
             logging.basicConfig(
-                level=logging.DEBUG, 
+                level=level, 
                 format='%(levelname)s: %(message)s')
 
-        self.logger = logging.getLogger()
-        self.logger.setLevel(logging.DEBUG)
+        cls.logger = logging.getLogger()
+        cls.logger.setLevel(level)
+    
+    @classmethod
+    def get_logger(cls):
+        return cls.logger
 
 class DDD:
     logger = None
 
-    def __init__(self):
-        self.logger = Logger().logger
+    def __init__(self):        
+        self.logger = Logger.get_logger()
         
     def process(self, directory="."):
         for root, dirs, files in os.walk(directory):
@@ -47,6 +52,7 @@ class DDD:
         self.process('C:\Windows\Web\Wallpaper')
 
 if __name__ == "__main__":
+    Logger.init_logger()
     app = DDD()
     app.main()
     
