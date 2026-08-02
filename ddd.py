@@ -28,10 +28,29 @@ class Logger:
         return cls.logger
 
 class DDD:
+    BUFFER_SIZE = 8192
+
     logger = None
 
     def __init__(self):        
         self.logger = Logger.get_logger()
+        
+    def hash_file(self, file):
+        md5 = ''
+        size = -1
+        
+        with open(file, "rb") as f:
+            # Get file hash
+            digest = hashlib.md5()
+            while chunk := f.read(self.BUFFER_SIZE):
+                digest.update(chunk)
+            md5 = digest.hexdigest()
+            
+            # Get file size
+            f.seek(0, os.SEEK_END)
+            size = f.tell()
+            
+        return (md5, size)
         
     def process(self, directory="."):
         for root, dirs, files in os.walk(directory):
@@ -39,14 +58,9 @@ class DDD:
                 # self.logger.debug("<DIR> %s\%s" % (root, d))
                 
             for file in files:
-                with open("{}\{}".format(root, file), "rb") as f:
-                    digest = hashlib.md5()
-                    while chunk := f.read(8192):
-                        digest.update(chunk)
-                    md5 = digest.hexdigest()
-                    f.seek(0, os.SEEK_END)
-                    size = f.tell()
-                self.logger.debug("      %s:%s\%s:%d" % (md5, root, file, size))
+                path = "{}\{}".format(root, file)
+                (md5, size) = self.hash_file(path)
+                self.logger.debug("      %s:%s:%d" % (md5, path, size))
     
     def main(self):
         self.process('C:\Windows\Web\Wallpaper')
