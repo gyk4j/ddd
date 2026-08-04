@@ -5,6 +5,12 @@ import os
 import io
 import hashlib
 from pathlib import Path
+from typing import TypeVar, Generic, List, Type, Iterable
+from abc import ABC, abstractmethod
+
+# Declare type variable
+T = TypeVar('T')
+ID = TypeVar('ID')
 
 class Logger:    
     logger = None
@@ -27,6 +33,31 @@ class Logger:
     @classmethod
     def get_logger(cls):
         return cls.logger
+
+class CrudRepository(Generic[T, ID]):
+    @abstractmethod
+    def save(self, entity: Type[T]) -> Type[T]:
+        pass
+
+    @abstractmethod
+    def findOne(self, primaryKey: ID) -> T:
+        pass
+
+    @abstractmethod
+    def findAll(self) -> Iterable[T]:
+        pass
+
+    @abstractmethod
+    def count(self) -> int:
+        pass
+
+    @abstractmethod
+    def delete(self, entity: T) -> None:
+        pass
+
+    @abstractmethod
+    def exists(primaryKey: ID) -> bool:
+        pass
 
 class DDD:
     BUFFER_SIZE = 8192
