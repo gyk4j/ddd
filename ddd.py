@@ -60,8 +60,34 @@ class CrudRepository(Generic[T, ID]):
         pass
 
 class FileHash:
-    # placeholder for the entity/model
-    pass
+    def __init__(self, file: str, md5: str, size: int):
+        self.file = file
+        self.md5 = md5
+        self.size = size
+    
+    @property
+    def file(self):
+        return self.file
+    
+    @file.setter
+    def file(self, file):
+        self.file = file
+        
+    @property
+    def md5(self):
+        return self.md5
+    
+    @md5.setter
+    def md5(self, md5):
+        self.md5 = md5
+        
+    @property
+    def size(self):
+        return self.size
+    
+    @size.setter
+    def size(self, size):
+        self.size = size
 
 class FileHashRepository(CrudRepository[FileHash, int]):
     @abstractmethod
