@@ -40,11 +40,11 @@ class CrudRepository(Generic[T, ID]):
         pass
 
     @abstractmethod
-    def findOne(self, primaryKey: ID) -> T:
+    def find_one(self, primaryKey: ID) -> T:
         pass
 
     @abstractmethod
-    def findAll(self) -> Iterable[T]:
+    def find_all(self) -> Iterable[T]:
         pass
 
     @abstractmethod
@@ -57,6 +57,15 @@ class CrudRepository(Generic[T, ID]):
 
     @abstractmethod
     def exists(primaryKey: ID) -> bool:
+        pass
+
+class FileHash:
+    # placeholder for the entity/model
+    pass
+
+class FileHashRepository(CrudRepository[FileHash, int]):
+    @abstractmethod
+    def find_by_name(self) -> Iterable[T]:
         pass
 
 class DDD:
