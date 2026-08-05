@@ -5,7 +5,7 @@ import os
 import io
 import hashlib
 from pathlib import Path
-from typing import TypeVar, Generic, List, Type, Iterable
+from typing import TypeVar, Generic, List, Type, Iterable, Protocol
 from abc import ABC, abstractmethod
 
 # Declare type variable
@@ -34,7 +34,7 @@ class Logger:
     def get_logger(cls):
         return cls.logger
 
-class CrudRepository(Generic[T, ID]):
+class CrudRepository(Generic[T, ID], Protocol):
     @abstractmethod
     def save(self, entity: Type[T]) -> Type[T]:
         pass
@@ -89,7 +89,7 @@ class FileHash:
     def size(self, size):
         self.size = size
 
-class FileHashRepository(CrudRepository[FileHash, int]):
+class FileHashRepository(CrudRepository[FileHash, int], Protocol):
     @abstractmethod
     def find_by_name(self) -> Iterable[T]:
         pass
