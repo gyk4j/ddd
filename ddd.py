@@ -94,6 +94,34 @@ class FileHashRepository(CrudRepository[FileHash, int], Protocol):
     def find_by_name(self) -> Iterable[T]:
         pass
 
+class ListRepository(FileHashRepository):
+    def __init__(self):
+        self.entries = list()
+        
+    def save(self, entity: Type[T]) -> Type[T]:
+        self.entries.append(entity)
+        return entity
+
+    def find_one(self, primaryKey: ID) -> T:
+        return self.entries[ID]
+
+    def find_all(self) -> Iterable[T]:
+        found = [entry for entry in self.entries]
+        return found
+
+    def count(self) -> int:
+        return len(self.entries)
+
+    def delete(self, entity: T) -> None:
+        self.entries.remove(entity)
+
+    def exists(primaryKey: ID) -> bool:
+        return ID >= 0 and ID < self.count()
+
+    def find_by_name(self, name: str) -> Iterable[T]:
+        found = [entry for entry in self.entries if name in entry.file]
+        return found
+
 class DDD:
     BUFFER_SIZE = 8192
 
