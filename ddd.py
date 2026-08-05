@@ -40,7 +40,7 @@ class CrudRepository(Generic[T, ID], Protocol):
         pass
 
     @abstractmethod
-    def find_one(self, primaryKey: ID) -> T:
+    def find_one(self, primary_key: ID) -> T:
         pass
 
     @abstractmethod
@@ -56,7 +56,7 @@ class CrudRepository(Generic[T, ID], Protocol):
         pass
 
     @abstractmethod
-    def exists(primaryKey: ID) -> bool:
+    def exists(self, primary_key: ID) -> bool:
         pass
 
 class FileHash:
@@ -102,7 +102,7 @@ class ListRepository(FileHashRepository):
         self.entries.append(entity)
         return entity
 
-    def find_one(self, primaryKey: ID) -> T:
+    def find_one(self, primary_key: ID) -> T:
         return self.entries[ID]
 
     def find_all(self) -> Iterable[T]:
@@ -115,8 +115,8 @@ class ListRepository(FileHashRepository):
     def delete(self, entity: T) -> None:
         self.entries.remove(entity)
 
-    def exists(primaryKey: ID) -> bool:
-        return ID >= 0 and ID < self.count()
+    def exists(self, primary_key: ID) -> bool:
+        return primary_key >= 0 and primary_key < self.count()
 
     def find_by_name(self, name: str) -> Iterable[T]:
         found = [entry for entry in self.entries if name in entry.file]
