@@ -55,37 +55,37 @@ class CrudRepository(Generic[T, ID], Protocol):
         pass
 
 class FileHash:
-    def __init__(self, file: str, md5: str, size: int):
-        self.file = file
-        self.md5 = md5
-        self.size = size
+    def __init__(self, file: str, md5: bytes, size: int):
+        self.file: str = file
+        self.md5: bytes = md5
+        self.size: int = size
     
     @property
-    def file(self):
+    def file(self) -> str:
         return self.file
     
     @file.setter
-    def file(self, file):
-        self.file = file
+    def file(self, file: str):
+        self.file: str = file
         
     @property
-    def md5(self):
+    def md5(self) -> bytes:
         return self.md5
     
     @md5.setter
-    def md5(self, md5):
-        self.md5 = md5
+    def md5(self, md5: bytes):
+        self.md5: bytes = md5
         
     @property
-    def size(self):
+    def size(self) -> int:
         return self.size
     
     @size.setter
-    def size(self, size):
-        self.size = size
+    def size(self, size: int):
+        self.size: int = size
 
 class FileHashRepository(CrudRepository[FileHash, int], Protocol):
-    @abstractmethod
+    
     def find_by_name(self) -> Iterable[T]:
         pass
 
