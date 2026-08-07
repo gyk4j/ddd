@@ -35,27 +35,22 @@ class Logger:
         return cls.logger
 
 class CrudRepository(Generic[T, ID], Protocol):
-    @abstractmethod
+    
     def save(self, entity: Type[T]) -> Type[T]:
         pass
 
-    @abstractmethod
     def find_one(self, primary_key: ID) -> T:
         pass
 
-    @abstractmethod
     def find_all(self) -> Iterable[T]:
         pass
 
-    @abstractmethod
     def count(self) -> int:
         pass
 
-    @abstractmethod
     def delete(self, entity: T) -> None:
         pass
 
-    @abstractmethod
     def exists(self, primary_key: ID) -> bool:
         pass
 
