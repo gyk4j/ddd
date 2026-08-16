@@ -84,7 +84,7 @@ class FileHash:
     def size(self, size: int):
         self._size = size
 
-class FileHashRepository(CrudRepository[FileHash, int], Protocol):
+class FileHashRepository(CrudRepository[FileHash, bytes], Protocol):
     
     def find_by_name(self) -> Iterable[T]:
         pass
@@ -119,6 +119,7 @@ class ListRepository(FileHashRepository):
         
 class CsvRepository(FileHashRepository):
     def __init__(self):
+        self.logger = Logger.get_logger()
         self.entries = list()
         # self.idx - dict()
         
@@ -159,9 +160,11 @@ class CsvRepository(FileHashRepository):
         # t = files[0]
         # return t
         
+        self.logger.debug("Searching for " + primary_key.hex() + "...")
         found = [ entity for entity in self.entries if entity.md5 == primary_key ]
         
         if len(found) != 1:
+            self.logger.warning(str(len(found)) + " found.")
             return None
         else:            
             return found[0]
@@ -193,16 +196,16 @@ class DDD:
         self.logger = Logger.get_logger()
         self.repository = CsvRepository()
         
-    def hash_file(self, file):
-        md5 = ''
-        size = -1
+    def hash_file(self, file) -> (bytes, int):
+        md5: bytes = b''
+        size: int = -1
         
         with file.open("rb") as f:
             # Get file hash
             digest = hashlib.md5()
             while chunk := f.read(self.BUFFER_SIZE):
                 digest.update(chunk)
-            md5 = digest.hexdigest()
+            md5 = digest.digest()
             
             # Get file size
             f.seek(0, os.SEEK_END)
@@ -225,19 +228,19 @@ class DDD:
         self.logger.debug("--- find_all ---")
         fa = self.repository.find_all()
         for i, v in enumerate(fa):
-            self.logger.debug("      %s:%s:%d" % (v.md5, v.file, v.size))
+            self.logger.debug("      %s:%s:%d" % (v.md5.hex(), v.file, v.size))
             
         self.logger.debug("--- find_one ---")
-        fo = self.repository.find_one('b38a304f579c28439f3defe073685732')
-        self.logger.debug("      %s:%s:%d" % (fo.md5, fo.file, fo.size))
+        fo = self.repository.find_one(bytes.fromhex('b38a304f579c28439f3defe073685732'))
+        self.logger.debug("      %s:%s:%d" % (fo.md5.hex(), fo.file, fo.size))
         
         self.logger.debug("--- find_by_name ---")
         fbn = self.repository.find_by_name('0.jpg')
         for i, v in enumerate(fbn):
-            self.logger.debug("      %s:%s:%d" % (v.md5, v.file, v.size))
+            self.logger.debug("      %s:%s:%d" % (v.md5.hex(), v.file, v.size))
             
         self.logger.debug("--- exists ---")
-        e = self.repository.exists('b38a304f579c28439f3defe073685732')
+        e = self.repository.exists(bytes.fromhex('b38a304f579c28439f3defe073685732'))
         self.logger.debug("      %s" % (e))
     
     def main(self):
