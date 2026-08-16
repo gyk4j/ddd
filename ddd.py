@@ -56,33 +56,33 @@ class CrudRepository(Generic[T, ID], Protocol):
 
 class FileHash:
     def __init__(self, file: str, md5: bytes, size: int):
-        self.file: str = file
-        self.md5: bytes = md5
-        self.size: int = size
+        self._file: str = file
+        self._md5: bytes = md5
+        self._size: int = size
     
     @property
     def file(self) -> str:
-        return self.file
+        return self._file
     
     @file.setter
     def file(self, file: str):
-        self.file: str = file
+        self._file = file
         
     @property
     def md5(self) -> bytes:
-        return self.md5
+        return self._md5
     
     @md5.setter
     def md5(self, md5: bytes):
-        self.md5: bytes = md5
+        self._md5 = md5
         
     @property
     def size(self) -> int:
-        return self.size
+        return self._size
     
     @size.setter
     def size(self, size: int):
-        self.size: int = size
+        self._size = size
 
 class FileHashRepository(CrudRepository[FileHash, int], Protocol):
     
@@ -116,6 +116,73 @@ class ListRepository(FileHashRepository):
     def find_by_name(self, name: str) -> Iterable[T]:
         found = [entry for entry in self.entries if name in entry.file]
         return found
+        
+class CsvRepository(FileHashRepository):
+    def __init__(self):
+        self.entries = list()
+        # self.idx - dict()
+        
+    def save(self, entity: Type[T]) -> Type[T]:        
+        self.entries.append(entity)
+        
+        # Add to index
+        # if entity.md5 not in self.idx:
+            # self.idx[entity.md5] = dict()
+            
+        # if entity.size not in self.idx[entity.md5]:
+            # self.idx[entity.md5][entity.size] = list()
+            
+        # self.idx[entity.md5][entity.size].append(entity)
+        
+        return entity
+
+    def find_one(self, primary_key: ID) -> T:
+        # Not found
+        # if primary_key not in self.idx:
+            # return None
+    
+        # Not found
+        # if len(list(self.idx[primary_key])) == 0:
+            # return None
+        
+        # sizes = list(self.idx[primary_key])
+        # Collision found; 1 md5 with multiple sizes
+        # if len(sizes) > 1:
+            # return None
+        
+        # Duplicates found; 1 md5 with multiple files
+        # files = self.idx[primary_key][sizes[0]]
+        # if len(files) > 1:
+            # return None
+            
+        # Found 1 entry        
+        # t = files[0]
+        # return t
+        
+        found = [ entity for entity in self.entries if entity.md5 == primary_key ]
+        
+        if len(found) != 1:
+            return None
+        else:            
+            return found[0]
+
+    def find_all(self) -> Iterable[T]:
+        found = [ entity for entity in self.entries ]
+        return found
+
+    def count(self) -> int:
+        return len(self.entries)
+
+    def delete(self, entity: T) -> None:
+        # found = [ entry for entry in self.entries if entry.md5 == entity.md5 and entry.size == entity.size and entry.file == entity.file ]                
+        self.entries.remove(entity)
+
+    def exists(self, primary_key: ID) -> bool:
+        return self.find_one(primary_key) is not None
+
+    def find_by_name(self, name: str) -> Iterable[T]:
+        found = [ entry for entry in self.entries if entry.file.endswith(name) ]
+        return found
 
 class DDD:
     BUFFER_SIZE = 8192
@@ -124,6 +191,7 @@ class DDD:
 
     def __init__(self):        
         self.logger = Logger.get_logger()
+        self.repository = CsvRepository()
         
     def hash_file(self, file):
         md5 = ''
@@ -150,10 +218,31 @@ class DDD:
             for file in files:
                 path = Path(root, file)
                 (md5, size) = self.hash_file(path)
-                self.logger.debug("      %s:%s:%d" % (md5, path, size))
+                # self.logger.debug("      %s:%s:%d" % (md5, path, size))
+                self.repository.save(FileHash(str(path), md5, size))
+                
+    def test(self):
+        self.logger.debug("--- find_all ---")
+        fa = self.repository.find_all()
+        for i, v in enumerate(fa):
+            self.logger.debug("      %s:%s:%d" % (v.md5, v.file, v.size))
+            
+        self.logger.debug("--- find_one ---")
+        fo = self.repository.find_one('b38a304f579c28439f3defe073685732')
+        self.logger.debug("      %s:%s:%d" % (fo.md5, fo.file, fo.size))
+        
+        self.logger.debug("--- find_by_name ---")
+        fbn = self.repository.find_by_name('0.jpg')
+        for i, v in enumerate(fbn):
+            self.logger.debug("      %s:%s:%d" % (v.md5, v.file, v.size))
+            
+        self.logger.debug("--- exists ---")
+        e = self.repository.exists('b38a304f579c28439f3defe073685732')
+        self.logger.debug("      %s" % (e))
     
     def main(self):
         self.process('C:\Windows\Web\Wallpaper')
+        self.test()
 
 if __name__ == "__main__":
     Logger.init_logger()
