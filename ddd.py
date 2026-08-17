@@ -7,6 +7,7 @@ import hashlib
 from pathlib import Path
 from typing import TypeVar, Generic, List, Type, Iterable, Protocol
 from abc import ABC, abstractmethod
+from collections import namedtuple
 
 # Declare type variable
 T = TypeVar('T')
@@ -54,35 +55,37 @@ class CrudRepository(Generic[T, ID], Protocol):
     def exists(self, primary_key: ID) -> bool:
         pass
 
-class FileHash:
-    def __init__(self, file: str, md5: bytes, size: int):
-        self._file: str = file
-        self._md5: bytes = md5
-        self._size: int = size
-    
-    @property
-    def file(self) -> str:
-        return self._file
-    
-    @file.setter
-    def file(self, file: str):
-        self._file = file
-        
-    @property
-    def md5(self) -> bytes:
-        return self._md5
-    
-    @md5.setter
-    def md5(self, md5: bytes):
-        self._md5 = md5
-        
-    @property
-    def size(self) -> int:
-        return self._size
-    
-    @size.setter
-    def size(self, size: int):
-        self._size = size
+FileHash = namedtuple('FileHash', [ 'file', 'size', 'md5' ])
+
+##class FileHash:
+##    def __init__(self, file: str, size: int, md5: bytes):
+##        self._file: str = file
+##        self._size: int = size
+##        self._md5: bytes = md5
+##    
+##    @property
+##    def file(self) -> str:
+##        return self._file
+##    
+##    @file.setter
+##    def file(self, file: str):
+##        self._file = file
+##        
+##    @property
+##    def size(self) -> int:
+##        return self._size
+##    
+##    @size.setter
+##    def size(self, size: int):
+##        self._size = size
+##        
+##    @property
+##    def md5(self) -> bytes:
+##        return self._md5
+##    
+##    @md5.setter
+##    def md5(self, md5: bytes):
+##        self._md5 = md5
 
 class FileHashRepository(CrudRepository[FileHash, bytes], Protocol):
     
