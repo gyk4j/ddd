@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TypeVar, Generic, List, Type, Iterable, Protocol
 from abc import ABC, abstractmethod
 from collections import namedtuple
+import csv
 
 # Declare type variable
 T = TypeVar('T')
@@ -129,8 +130,44 @@ class ListRepository(FileHashRepository):
         return found
         
 class CsvRepository(ListRepository):
+    FILENAME = 'ddd.csv'
+    FIELDS = ['md5', 'size', 'file']
+    
     def __init__(self):
+        self.logger = Logger.get_logger()
+        self.logger.debug('CsvRepository.__init__() called')
         super().__init__()
+
+        fp = Path(self.FILENAME)
+
+        if fp.exists():
+            self.logger.debug('Reading CSV')
+            with open(self.FILENAME, 'r', newline='', encoding='utf-8') as csvfile:
+                csvreader = csv.reader(csvfile)
+
+                fields = next(csvreader)
+                for row in csvreader:     # Read rows
+                    super().save(FileHash(row[2], int(row[1]), bytes.fromhex(row[0])))
+        else:
+            self.logger.debug('No CSV')
+
+    def __del__(self):
+        self.logger.debug('CsvRepository.__del__() called')
+
+        if len(super().find_all()) > 0:
+            self.logger.debug('Writing CSV')
+            with open(self.FILENAME, 'w', newline='', encoding='utf-8') as csvfile:
+                csvwriter = csv.writer(csvfile)
+                csvwriter.writerow(self.FIELDS)
+
+                for entry in super().find_all():
+                    csvwriter.writerow([ entry.md5.hex(), entry.size, entry.file ])
+        else:
+            self.logger.debug('No data to save')
+            fp = Path(self.FILENAME)
+            if fp.exists():
+                self.logger.debug('Deleting CSV')
+                fp.unlink()
 
 class DDD:
     BUFFER_SIZE = 8192
@@ -177,7 +214,10 @@ class DDD:
             
         self.logger.debug("--- find_one ---")
         fo = self.repository.find_one(bytes.fromhex('b38a304f579c28439f3defe073685732'))
-        self.logger.debug("      %s:%s:%d" % (fo.md5.hex(), fo.file, fo.size))
+        if fo is not None:
+            self.logger.debug("      %s:%s:%d" % (fo.md5.hex(), fo.file, fo.size))
+        else:
+            self.logger.warning('Zero or multiple entries found.')
         
         self.logger.debug("--- find_by_name ---")
         fbn = self.repository.find_by_name('0.jpg')
@@ -196,5 +236,5 @@ if __name__ == "__main__":
     Logger.init_logger()
     app = DDD()
     app.main()
-    
+    del app # Make sure any __del__ finalizers are called for cleaning up.
     
