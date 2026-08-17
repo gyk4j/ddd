@@ -94,6 +94,7 @@ class FileHashRepository(CrudRepository[FileHash, bytes], Protocol):
 
 class ListRepository(FileHashRepository):
     def __init__(self):
+        self.logger = Logger.get_logger()
         self.entries = list()
         
     def save(self, entity: Type[T]) -> Type[T]:
@@ -101,68 +102,6 @@ class ListRepository(FileHashRepository):
         return entity
 
     def find_one(self, primary_key: ID) -> T:
-        return self.entries[ID]
-
-    def find_all(self) -> Iterable[T]:
-        found = [entry for entry in self.entries]
-        return found
-
-    def count(self) -> int:
-        return len(self.entries)
-
-    def delete(self, entity: T) -> None:
-        self.entries.remove(entity)
-
-    def exists(self, primary_key: ID) -> bool:
-        return primary_key >= 0 and primary_key < self.count()
-
-    def find_by_name(self, name: str) -> Iterable[T]:
-        found = [entry for entry in self.entries if name in entry.file]
-        return found
-        
-class CsvRepository(FileHashRepository):
-    def __init__(self):
-        self.logger = Logger.get_logger()
-        self.entries = list()
-        # self.idx - dict()
-        
-    def save(self, entity: Type[T]) -> Type[T]:        
-        self.entries.append(entity)
-        
-        # Add to index
-        # if entity.md5 not in self.idx:
-            # self.idx[entity.md5] = dict()
-            
-        # if entity.size not in self.idx[entity.md5]:
-            # self.idx[entity.md5][entity.size] = list()
-            
-        # self.idx[entity.md5][entity.size].append(entity)
-        
-        return entity
-
-    def find_one(self, primary_key: ID) -> T:
-        # Not found
-        # if primary_key not in self.idx:
-            # return None
-    
-        # Not found
-        # if len(list(self.idx[primary_key])) == 0:
-            # return None
-        
-        # sizes = list(self.idx[primary_key])
-        # Collision found; 1 md5 with multiple sizes
-        # if len(sizes) > 1:
-            # return None
-        
-        # Duplicates found; 1 md5 with multiple files
-        # files = self.idx[primary_key][sizes[0]]
-        # if len(files) > 1:
-            # return None
-            
-        # Found 1 entry        
-        # t = files[0]
-        # return t
-        
         self.logger.debug("Searching for " + primary_key.hex() + "...")
         found = [ entity for entity in self.entries if entity.md5 == primary_key ]
         
@@ -180,7 +119,6 @@ class CsvRepository(FileHashRepository):
         return len(self.entries)
 
     def delete(self, entity: T) -> None:
-        # found = [ entry for entry in self.entries if entry.md5 == entity.md5 and entry.size == entity.size and entry.file == entity.file ]                
         self.entries.remove(entity)
 
     def exists(self, primary_key: ID) -> bool:
@@ -189,6 +127,10 @@ class CsvRepository(FileHashRepository):
     def find_by_name(self, name: str) -> Iterable[T]:
         found = [ entry for entry in self.entries if entry.file.endswith(name) ]
         return found
+        
+class CsvRepository(ListRepository):
+    def __init__(self):
+        super().__init__()
 
 class DDD:
     BUFFER_SIZE = 8192
@@ -225,7 +167,7 @@ class DDD:
                 path = Path(root, file)
                 (md5, size) = self.hash_file(path)
                 # self.logger.debug("      %s:%s:%d" % (md5, path, size))
-                self.repository.save(FileHash(str(path), md5, size))
+                self.repository.save(FileHash(str(path), size, md5))
                 
     def test(self):
         self.logger.debug("--- find_all ---")
