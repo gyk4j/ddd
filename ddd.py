@@ -126,7 +126,7 @@ class ListRepository(FileHashRepository):
         return self.find_one(primary_key) is not None
 
     def find_by_name(self, name: str) -> Iterable[T]:
-        found = [ entry for entry in self.entries if entry.file.endswith(name) ]
+        found = [ entry for entry in self.entries if entry.file == name ]
         return found
         
 class CsvRepository(ListRepository):
@@ -202,9 +202,13 @@ class DDD:
                 
             for file in files:
                 path = Path(root, file)
-                (md5, size) = self.hash_file(path)
-                # self.logger.debug("      %s:%s:%d" % (md5, path, size))
-                self.repository.save(FileHash(str(path), size, md5))
+
+                if len(self.repository.find_by_name(str(path))) == 0:
+                    (md5, size) = self.hash_file(path)
+                    # self.logger.debug("      %s:%s:%d" % (md5, path, size))
+                    self.repository.save(FileHash(str(path), size, md5))
+                else:
+                    self.logger.debug("* Skipped %s" % (path))
                 
     def test(self):
         self.logger.debug("--- find_all ---")
