@@ -9,6 +9,7 @@ from typing import TypeVar, Generic, List, Type, Iterable, Protocol
 from abc import ABC, abstractmethod
 from collections import namedtuple
 import csv
+from datetime import datetime
 
 # Declare type variable
 T = TypeVar('T')
@@ -56,7 +57,7 @@ class CrudRepository(Generic[T, ID], Protocol):
     def exists(self, primary_key: ID) -> bool:
         pass
 
-FileHash = namedtuple('FileHash', [ 'file', 'size', 'md5' ])
+FileHash = namedtuple('FileHash', [ 'file', 'size', 'md5', 'mtime' ])
 
 ##class FileHash:
 ##    def __init__(self, file: str, size: int, md5: bytes):
@@ -131,7 +132,7 @@ class ListRepository(FileHashRepository):
         
 class CsvRepository(ListRepository):
     FILENAME = 'ddd.csv'
-    FIELDS = ['md5', 'size', 'file']
+    FIELDS = ['md5', 'mtime', 'size', 'file']
     
     def __init__(self):
         self.logger = Logger.get_logger()
@@ -149,7 +150,8 @@ class CsvRepository(ListRepository):
 
                 fields = next(csvreader)
                 for row in csvreader:     # Read rows
-                    super().save(FileHash(row[2], int(row[1]), bytes.fromhex(row[0])))
+                    h = FileHash(row[3], int(row[2]), bytes.fromhex(row[0]), float(row[1]))
+                    super().save(h)
         else:
             self.logger.debug('No CSV')
         return self
@@ -164,7 +166,7 @@ class CsvRepository(ListRepository):
                 csvwriter.writerow(self.FIELDS)
 
                 for entry in super().find_all():
-                    csvwriter.writerow([ entry.md5.hex(), entry.size, entry.file ])
+                    csvwriter.writerow([ entry.md5.hex(), entry.mtime, entry.size, entry.file ])
         else:
             self.logger.debug('No data to save')
             fp = Path(self.FILENAME)
@@ -208,8 +210,9 @@ class DDD:
 
                 if len(self.repository.find_by_name(str(path))) == 0:
                     (md5, size) = self.hash_file(path)
+                    mtime = path.stat().st_mtime
                     # self.logger.debug("      %s:%s:%d" % (md5, path, size))
-                    self.repository.save(FileHash(str(path), size, md5))
+                    self.repository.save(FileHash(str(path), size, md5, mtime))
                 else:
                     self.logger.debug("* Skipped %s" % (path))
                 
@@ -217,19 +220,22 @@ class DDD:
         self.logger.debug("--- find_all ---")
         fa = self.repository.find_all()
         for i, v in enumerate(fa):
-            self.logger.debug("      %s:%s:%d" % (v.md5.hex(), v.file, v.size))
+            dt = datetime.fromtimestamp(v.mtime)
+            self.logger.debug("      %s:%s:%s:%d" % (v.md5.hex(), v.file, dt, v.size))
             
         self.logger.debug("--- find_one ---")
         fo = self.repository.find_one(bytes.fromhex('b38a304f579c28439f3defe073685732'))
         if fo is not None:
-            self.logger.debug("      %s:%s:%d" % (fo.md5.hex(), fo.file, fo.size))
+            dt = datetime.fromtimestamp(fo.mtime)
+            self.logger.debug("      %s:%s:%s:%d" % (fo.md5.hex(), fo.file, dt, fo.size))
         else:
             self.logger.warning('Zero or multiple entries found.')
         
         self.logger.debug("--- find_by_name ---")
         fbn = self.repository.find_by_name('0.jpg')
         for i, v in enumerate(fbn):
-            self.logger.debug("      %s:%s:%d" % (v.md5.hex(), v.file, v.size))
+            dt = datetime.fromtimestamp(v.mtime)
+            self.logger.debug("      %s:%s:%s:%d" % (v.md5.hex(), v.file, dt, v.size))
             
         self.logger.debug("--- exists ---")
         e = self.repository.exists(bytes.fromhex('b38a304f579c28439f3defe073685732'))
