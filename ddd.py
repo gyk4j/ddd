@@ -138,6 +138,8 @@ class CsvRepository(ListRepository):
         self.logger.debug('CsvRepository.__init__() called')
         super().__init__()
 
+    def __enter__(self):
+        self.logger.debug('CsvRepository.__enter__() called')
         fp = Path(self.FILENAME)
 
         if fp.exists():
@@ -150,9 +152,10 @@ class CsvRepository(ListRepository):
                     super().save(FileHash(row[2], int(row[1]), bytes.fromhex(row[0])))
         else:
             self.logger.debug('No CSV')
+        return self
 
-    def __del__(self):
-        self.logger.debug('CsvRepository.__del__() called')
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.logger.debug('CsvRepository.__exit__() called')
 
         if len(super().find_all()) > 0:
             self.logger.debug('Writing CSV')
@@ -166,7 +169,7 @@ class CsvRepository(ListRepository):
             self.logger.debug('No data to save')
             fp = Path(self.FILENAME)
             if fp.exists():
-                self.logger.debug('Deleting CSV')
+                self.logger.debug('Deleting empty CSV')
                 fp.unlink()
 
 class DDD:
@@ -174,9 +177,9 @@ class DDD:
 
     logger = None
 
-    def __init__(self):        
+    def __init__(self, repo):        
         self.logger = Logger.get_logger()
-        self.repository = CsvRepository()
+        self.repository = repo
         
     def hash_file(self, file) -> (bytes, int):
         md5: bytes = b''
@@ -238,7 +241,8 @@ class DDD:
 
 if __name__ == "__main__":
     Logger.init_logger()
-    app = DDD()
-    app.main()
-    del app # Make sure any __del__ finalizers are called for cleaning up.
+    with CsvRepository() as repository:
+        app = DDD(repository)
+        app.main()
+    
     
