@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 from collections import namedtuple
 import csv
 from datetime import datetime
+import sqlite3
 
 # Declare type variable
 T = TypeVar('T')
@@ -174,6 +175,86 @@ class CsvRepository(ListRepository):
                 self.logger.debug('Deleting empty CSV')
                 fp.unlink()
 
+class SqliteRepository(FileHashRepository):
+    FILENAME = 'ddd.sqlite3' # ':memory:'
+    FIELDS = ['md5', 'mtime', 'size', 'file']
+    
+    def __init__(self):
+        self.logger = Logger.get_logger()
+        self.logger.debug('SqliteRepository.__init__() called')
+        self.conn = None
+        self.cursor = None
+
+    def __enter__(self):
+        self.logger.debug('SqliteRepository.__enter__() called')
+        try:
+            self.conn = sqlite3.connect(self.FILENAME)
+            self.cursor = self.conn.cursor()
+
+            # Set some pragmas to optimize performance
+            self.cursor.execute("PRAGMA journal_mode = OFF;")
+            self.cursor.execute("PRAGMA synchronous = OFF;")
+            self.cursor.execute("PRAGMA temp_store = MEMORY;")
+            self.cursor.execute("PRAGMA cache_size = -64000;")
+            self.cursor.execute("PRAGMA busy_timeout = 5000;")
+            self.cursor.execute("PRAGMA page_size = 8192;")
+            
+            self.cursor.execute('CREATE TABLE entries (md5 TEXT, mtime REAL, size INTEGER, file TEXT)')
+            self.conn.commit()
+        except sqlite3.Error as error:
+            self.logger.error(error)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.logger.debug('SqliteRepository.__exit__() called')
+        if self.cursor is not None:
+            self.cursor.close()
+        if self.conn is not None:
+            self.conn.commit()
+            self.conn.close()
+        
+    def save(self, entity: Type[T]) -> Type[T]:
+        self.cursor.execute("INSERT INTO entries (md5, mtime, size, file) VALUES (?, ?, ?, ?)",
+                           (entity.md5.hex(), entity.mtime, entity.size, entity.file))
+        return entity
+
+    def find_one(self, primary_key: ID) -> T:
+        self.logger.debug("Searching for " + primary_key.hex() + "...")
+        self.cursor.execute('SELECT file, size, md5, mtime FROM entries WHERE md5 = ?', (primary_key.hex(),))
+        result = self.cursor.fetchone()
+        if result is not None:
+            found = FileHash(str(result[0]), int(result[1]), bytes.fromhex(result[2]), float(result[3]))
+        else:
+            found = None            
+
+        return found
+
+    def find_all(self) -> Iterable[T]:
+        self.cursor.execute("SELECT file, size, md5, mtime FROM entries")
+        result = self.cursor.fetchall()
+        found = [ FileHash(str(r[0]), int(r[1]), bytes.fromhex(r[2]), float(r[3]))
+                  for r in result ]
+        self.logger.debug(str(len(found)) + " entries found")
+        return found
+
+    def count(self) -> int:
+        self.cursor.execute("SELECT COUNT(*) FROM entries")
+        result = self.cursor.fetchone()
+        return int(result[0])
+
+    def delete(self, entity: T) -> None:
+        self.cursor.execute("DELETE FROM entries WHERE file = ? AND size = ? AND md5 = ? AND mtime = ?",
+                            (entity.file, entity.size, entity.md5.hex(), entity.mtime))
+
+    def exists(self, primary_key: ID) -> bool:
+        return self.find_one(primary_key) is not None
+
+    def find_by_name(self, name: str) -> Iterable[T]:
+        self.cursor.execute('SELECT file, size, md5, mtime FROM entries WHERE file = ?', (name,))
+        result = self.cursor.fetchall()        
+        found = [ FileHash(str(r[0]), int(r[1]), bytes.fromhex(r[2]), float(r[3])) for r in result ]        
+        return found
+
 class DDD:
     BUFFER_SIZE = 8192
 
@@ -212,7 +293,8 @@ class DDD:
                     (md5, size) = self.hash_file(path)
                     mtime = path.stat().st_mtime
                     # self.logger.debug("      %s:%s:%d" % (md5, path, size))
-                    self.repository.save(FileHash(str(path), size, md5, mtime))
+                    h = FileHash(str(path), size, md5, mtime)
+                    self.repository.save(h)
                 else:
                     self.logger.debug("* Skipped %s" % (path))
                 
@@ -232,7 +314,7 @@ class DDD:
             self.logger.warning('Zero or multiple entries found.')
         
         self.logger.debug("--- find_by_name ---")
-        fbn = self.repository.find_by_name('0.jpg')
+        fbn = self.repository.find_by_name('C:\Windows\Web\Wallpaper\Windows\img0.jpg')
         for i, v in enumerate(fbn):
             dt = datetime.fromtimestamp(v.mtime)
             self.logger.debug("      %s:%s:%s:%d" % (v.md5.hex(), v.file, dt, v.size))
@@ -247,7 +329,7 @@ class DDD:
 
 if __name__ == "__main__":
     Logger.init_logger()
-    with CsvRepository() as repository:
+    with SqliteRepository() as repository:
         app = DDD(repository)
         app.main()
     
