@@ -175,6 +175,23 @@ class CsvRepository(ListRepository):
                 self.logger.debug('Deleting empty CSV')
                 fp.unlink()
 
+class Blob:
+    BYTE_ORDER = "big"
+    
+    @classmethod
+    def encode(cls, blob: bytes) -> (int, int):
+        hi = int.from_bytes(blob[:8], byteorder=cls.BYTE_ORDER)
+        lo = int.from_bytes(blob[8:], byteorder=cls.BYTE_ORDER)
+        return (hi, lo)
+
+    @classmethod
+    def decode(cls, hi: int, lo: int) -> bytes:
+        blob = (
+            hi.to_bytes(8, byteorder=cls.BYTE_ORDER) +
+            lo.to_bytes(8, byteorder=cls.BYTE_ORDER)
+        )
+        return blob
+
 class SqliteRepository(FileHashRepository):
     FILENAME = 'ddd.sqlite3' # ':memory:'
     FIELDS = ['md5', 'mtime', 'size', 'file']
@@ -199,7 +216,8 @@ class SqliteRepository(FileHashRepository):
             self.cursor.execute("PRAGMA busy_timeout = 5000;")
             self.cursor.execute("PRAGMA page_size = 8192;")
             
-            self.cursor.execute('CREATE TABLE entries (md5 TEXT, mtime REAL, size INTEGER, file TEXT)')
+            self.cursor.execute('CREATE TABLE IF NOT EXISTS entries (md5 BLOB, mtime REAL, size INTEGER, file TEXT);')
+            # self.cursor.execute('CREATE INDEX idx_md5 ON entries (md5hi, md5lo);')
             self.conn.commit()
         except sqlite3.Error as error:
             self.logger.error(error)
@@ -213,17 +231,19 @@ class SqliteRepository(FileHashRepository):
             self.conn.commit()
             self.conn.close()
         
-    def save(self, entity: Type[T]) -> Type[T]:
+    def save(self, entity: Type[T]) -> Type[T]:        
         self.cursor.execute("INSERT INTO entries (md5, mtime, size, file) VALUES (?, ?, ?, ?)",
-                           (entity.md5.hex(), entity.mtime, entity.size, entity.file))
+                           (entity.md5, entity.mtime, entity.size, entity.file))
         return entity
 
     def find_one(self, primary_key: ID) -> T:
         self.logger.debug("Searching for " + primary_key.hex() + "...")
-        self.cursor.execute('SELECT file, size, md5, mtime FROM entries WHERE md5 = ?', (primary_key.hex(),))
+        #(md5hi, md5lo) = Blob.encode(primary_key)
+        self.cursor.execute('SELECT file, size, md5, mtime FROM entries WHERE md5 = ?', (primary_key,))
         result = self.cursor.fetchone()
         if result is not None:
-            found = FileHash(str(result[0]), int(result[1]), bytes.fromhex(result[2]), float(result[3]))
+            #md5 = Blob.decode(int(result[2]), int(result[3]))
+            found = FileHash(str(result[0]), int(result[1]), result[2], float(result[3]))
         else:
             found = None            
 
@@ -232,7 +252,7 @@ class SqliteRepository(FileHashRepository):
     def find_all(self) -> Iterable[T]:
         self.cursor.execute("SELECT file, size, md5, mtime FROM entries")
         result = self.cursor.fetchall()
-        found = [ FileHash(str(r[0]), int(r[1]), bytes.fromhex(r[2]), float(r[3]))
+        found = [ FileHash(str(r[0]), int(r[1]), r[2], float(r[3]))
                   for r in result ]
         self.logger.debug(str(len(found)) + " entries found")
         return found
@@ -243,8 +263,9 @@ class SqliteRepository(FileHashRepository):
         return int(result[0])
 
     def delete(self, entity: T) -> None:
+        #(md5hi, md5lo) = Blob.encode(entity.md5)
         self.cursor.execute("DELETE FROM entries WHERE file = ? AND size = ? AND md5 = ? AND mtime = ?",
-                            (entity.file, entity.size, entity.md5.hex(), entity.mtime))
+                            (entity.file, entity.size, entity.md5, entity.mtime))
 
     def exists(self, primary_key: ID) -> bool:
         return self.find_one(primary_key) is not None
@@ -252,7 +273,7 @@ class SqliteRepository(FileHashRepository):
     def find_by_name(self, name: str) -> Iterable[T]:
         self.cursor.execute('SELECT file, size, md5, mtime FROM entries WHERE file = ?', (name,))
         result = self.cursor.fetchall()        
-        found = [ FileHash(str(r[0]), int(r[1]), bytes.fromhex(r[2]), float(r[3])) for r in result ]        
+        found = [ FileHash(str(r[0]), int(r[1]), r[2], float(r[3])) for r in result ]        
         return found
 
 class DDD:
